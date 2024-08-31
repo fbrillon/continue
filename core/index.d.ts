@@ -348,6 +348,7 @@ export interface LLMOptions {
   // AWS options
   profile?: string;
   modelArn?: string;
+  useSSO?: boolean;
 
   // AWS and GCP Options
   region?: string;

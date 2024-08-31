@@ -2,7 +2,7 @@ import {
   BedrockRuntimeClient,
   ConverseStreamCommand,
 } from "@aws-sdk/client-bedrock-runtime";
-import { fromIni } from "@aws-sdk/credential-providers";
+import { fromIni, fromSSO } from "@aws-sdk/credential-providers";
 import {
   ChatMessage,
   CompletionOptions,
@@ -21,17 +21,15 @@ class Bedrock extends BaseLLM {
     contextLength: 200_000
   };
   profile?: string | undefined;
+  useSSO: boolean;
 
   constructor(options: LLMOptions) {
     super(options);
     if (!options.apiBase) {
       this.apiBase = `https://bedrock-runtime.${options.region}.amazonaws.com`;
     }
-    if (options.profile) {
-      this.profile = options.profile;
-    } else {
-      this.profile = "bedrock";
-    }
+    this.profile = options.profile || "bedrock";
+    this.useSSO = options.useSSO || false;
   }
 
   protected async *_streamComplete(
@@ -127,15 +125,10 @@ class Bedrock extends BaseLLM {
   }
 
   private async _getCredentials() {
-    try {
-      return await fromIni({
-        profile: this.profile,
-      })();
-    } catch (e) {
-      console.warn(
-        `AWS profile with name ${this.profile} not found in ~/.aws/credentials, using default profile`,
-      );
-      return await fromIni()();
+    if (this.useSSO) {
+      return await fromSSO({ profile: this.profile })();
+    } else {
+      return await fromIni({ profile: this.profile })();
     }
   }
 }
