@@ -2,7 +2,11 @@ import {
   BedrockRuntimeClient,
   ConverseStreamCommand,
 } from "@aws-sdk/client-bedrock-runtime";
-import { fromIni, fromSSO } from "@aws-sdk/credential-providers";
+import {
+  fromIni,
+  fromSSO,
+  fromEnv,
+} from "@aws-sdk/credential-providers";
 import {
   ChatMessage,
   CompletionOptions,
@@ -18,18 +22,18 @@ class Bedrock extends BaseLLM {
   static defaultOptions: Partial<LLMOptions> = {
     region: "us-east-1",
     model: "anthropic.claude-3-sonnet-20240229-v1:0",
-    contextLength: 200_000
+    contextLength: 200_000,
+    authProvider: 'ini'
   };
   profile?: string | undefined;
-  useSSO: boolean;
-
+  authProvider: string;
   constructor(options: LLMOptions) {
     super(options);
     if (!options.apiBase) {
       this.apiBase = `https://bedrock-runtime.${options.region}.amazonaws.com`;
     }
     this.profile = options.profile || "bedrock";
-    this.useSSO = options.useSSO || false;
+    this.authProvider = options.authProvider || 'ini';
   }
 
   protected async *_streamComplete(
@@ -125,9 +129,13 @@ class Bedrock extends BaseLLM {
   }
 
   private async _getCredentials() {
-    if (this.useSSO) {
+    switch (this.authProvider) {
+      case 'sso':
       return await fromSSO({ profile: this.profile })();
-    } else {
+      case 'env':
+        return await fromEnv()();
+      case 'ini':
+      default:
       return await fromIni({ profile: this.profile })();
     }
   }
